@@ -19,8 +19,6 @@ node_modules/
 # logs
 *.log
 
-# publish output
-wwwroot/
 
 # OS files
 Thumbs.db
