@@ -1,0 +1,120 @@
+﻿/* wwwroot/css/auth.css — auth page styles (glass + animation + glow) */
+
+:root {
+    --text: #e6edf3;
+    --accent1: #0ea5e9;
+    --accent2: #3b82f6;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Page and background */
+.auth-bg {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    overflow: hidden;
+    position: relative;
+}
+
+    .auth-bg::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.65);
+        backdrop-filter: blur(4px);
+        z-index: 1;
+    }
+
+/* Card */
+.auth-card {
+    position: relative;
+    z-index: 2;
+    background: rgba(31,41,55,0.65);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    width: 100%;
+    max-width: 420px;
+    color: var(--text);
+    animation: fadeUp 0.8s ease-out forwards;
+}
+
+    /* Inputs */
+    .auth-card .form-control {
+        background: rgba(13,17,23,0.6);
+        border: 1px solid #30363d;
+        color: var(--text);
+        border-radius: 10px;
+    }
+
+        .auth-card .form-control:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88,166,255,0.3);
+        }
+
+/* Button */
+.btn-primary {
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    border: none;
+    font-weight: 600;
+    padding: 0.7rem;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(59,130,246,0.6);
+    transition: all 0.2s ease;
+    animation: glowPulse 2s infinite ease-in-out;
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(59,130,246,0.8);
+    }
+
+/* Links */
+.small-link {
+    color: #58a6ff;
+    text-decoration: none;
+}
+
+    .small-link:hover {
+        text-decoration: underline;
+    }
+
+/* Animations */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(59,130,246,0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(59,130,246,0.9);
+    }
+}
+
+/* utility */
+.text-center-small {
+    text-align: center;
+    font-size: 0.95rem;
+}
