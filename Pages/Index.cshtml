@@ -1,0 +1,435 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Pomodoro Timer";
+    Layout = null;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pomodoro Tracker</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/site-modern.css" />
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body class="bg-gradient theme-original">
+
+    <!-- Decorative overlay that JS adjusts opacity of to darken background on scroll -->
+    <div id="bgOverlay" aria-hidden="true"></div>
+
+    <!-- TOPBAR -->
+    <nav class="topbar">
+        <div class="container d-flex align-items-center justify-content-between">
+            <div class="brand"><strong>Pomodoro</strong> Tracker</div>
+            <div class="controls d-flex gap-2 align-items-center">
+                <button class="btn btn-ghost" id="openSettings" title="Settings">⚙️</button>
+                <button class="btn btn-ghost" id="openHistory" title="History">📜</button>
+
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="user-display text-white small">@User.Identity?.Name</span>
+                        <form method="post" asp-page="/Account/Logout" class="d-inline">
+                            <button type="submit" class="btn btn-ghost btn-sm">Logout</button>
+                        </form>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="user-display user-placeholder text-white small">Guest</span>
+                        <a asp-page="/Account/Login" class="btn btn-ghost">Login</a>
+                        <a asp-page="/Account/Register" class="btn btn-ghost ms-2">Register</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO + MAIN GRID -->
+    <header class="hero-section">
+        <div class="container hero-inner">
+            <div class="row align-items-center">
+                <div class="col-lg-7 hero-left animate-on-scroll" data-parallax-speed="0.28" data-auto-stagger>
+                    <h1 class="hero-title">Focus smarter. Finish more.</h1>
+                    <p class="hero-sub lead">Pomodoro Tracker helps you attack your to-do list in short, powerful focus sessions — with music, tasks and session history to keep you accountable.</p>
+                    <div class="mt-4">
+                        <a class="btn btn-primary btn-lg me-2" href="#timerSection" onclick="document.getElementById('timerSection').scrollIntoView({behavior:'smooth'});">Start a Pomodoro</a>
+                        <a class="btn btn-outline-light btn-lg" href="#faqBlock" onclick="document.getElementById('faqBlock').scrollIntoView({behavior:'smooth'});">Read the FAQ</a>
+                    </div>
+                </div>
+
+                <div class="col-lg-5 hero-right animate-on-scroll" data-parallax-speed="0.12">
+                    <!-- compact preview of main timer inside hero -->
+                    <div class="panel hero-timer">
+                        <div class="muted-title small">Quick start</div>
+                        <div class="timer-wrap-compact">
+                            <svg class="progress-ring small" width="220" height="220" viewBox="0 0 120 120" aria-hidden="true">
+                                <circle class="ring-bg" cx="60" cy="60" r="50" fill="none" stroke-width="6"></circle>
+                                <circle class="ring" cx="60" cy="60" r="50" fill="none" stroke-width="6" stroke-linecap="round"></circle>
+                            </svg>
+                            <div class="timer-display-compact">
+                                <div id="timeDisplayHero" class="time-medium">25:00</div>
+                                <div class="session-label small">Focus</div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-center mt-3">
+                            <button class="btn btn-sm btn-primary" onclick="window.__pomodoro && window.__pomodoro.startTimer && window.__pomodoro.startTimer()">Start</button>
+                            <button class="btn btn-sm btn-outline-light" onclick="window.__pomodoro && window.__pomodoro.pauseTimer && window.__pomodoro.pauseTimer()">Pause</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-grid">
+        <!-- LEFT: Timer (full) -->
+        <section class="panel timer-panel animate-on-scroll" id="timerSection" data-parallax-speed="0.22">
+            <h3 class="muted-title">Timer</h3>
+
+            <div class="mode-tabs" role="tablist" aria-label="Timer modes">
+                <button class="mode-btn active" data-mode="work">Pomodoro</button>
+                <button class="mode-btn" data-mode="short">Short Break</button>
+                <button class="mode-btn" data-mode="long">Long Break</button>
+            </div>
+
+            <div class="timer-wrap">
+                <svg class="progress-ring" width="320" height="320" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="ring-bg" cx="60" cy="60" r="50" fill="none" stroke-width="6"></circle>
+                    <circle class="ring" cx="60" cy="60" r="50" fill="none" stroke-width="6" stroke-linecap="round"></circle>
+                </svg>
+
+                <div class="timer-display">
+                    <div id="timeDisplay" class="time-large">25:00</div>
+                    <div class="session-label" id="sessionLabel">Focus</div>
+                </div>
+            </div>
+
+            <div class="timer-actions d-flex gap-2 justify-content-center mt-3">
+                <button id="startBtn" class="btn btn-primary btn-lg px-4">Start</button>
+                <button id="pauseBtn" class="btn btn-outline-secondary btn-lg px-3">Pause</button>
+                <button id="resetBtn" class="btn btn-link">Reset</button>
+            </div>
+
+            <div class="quick-controls d-flex gap-2 justify-content-center mt-3">
+                <button class="btn btn-sm btn-chip" data-duration="1500">25m</button>
+                <button class="btn btn-sm btn-chip" data-duration="1200">20m</button>
+                <button class="btn btn-sm btn-chip" data-duration="300">5m</button>
+                <button class="btn btn-sm btn-chip" id="toggleAutoCycle">Auto-cycle: <span id="autoCycleState">On</span></button>
+            </div>
+
+            <!-- Custom timer -->
+            <div class="custom-timer mt-4 text-center">
+                <h6 class="mb-2">Custom Timer</h6>
+                <div class="d-flex justify-content-center gap-2 align-items-center">
+                    <input id="customMinutes" type="number" class="form-control w-auto" placeholder="Min" min="0" value="0" />
+                    <input id="customSeconds" type="number" class="form-control w-auto" placeholder="Sec" min="0" max="59" value="0" />
+                    <button id="startCustomTimer" class="btn btn-success">Start</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT: Tasks + Player -->
+        <aside class="panel side-panel animate-on-scroll" id="sideSection" data-parallax-speed="0.12">
+            <div class="tasks-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Tasks <small id="taskCount" class="text-muted">0</small></h5>
+                <button class="btn btn-sm btn-ghost" id="clearTasks">Clear</button>
+            </div>
+
+            <div class="task-input mt-3 d-flex gap-2">
+                <input id="taskInput" class="form-control" placeholder="+ Add a task and press Enter" />
+                <button id="addTask" class="btn btn-primary">Add</button>
+            </div>
+
+            <ul id="taskList" class="task-list mt-3"></ul>
+
+            <!-- Music Player (refined) -->
+            <div class="player-card">
+                <!-- Left: album art + meta -->
+                <div class="player-left">
+                    <div class="album-art">
+                        🎵
+                    </div>
+                    <div class="track-meta">
+                        <div id="trackTitle" class="track-title">Lofi Track 1</div>
+                        <div id="trackSub" class="track-sub">Pomodoro Beats</div>
+                    </div>
+                </div>
+
+                <!-- Center: progress + controls -->
+                <div class="player-center">
+                    <div class="progress-wrap">
+                        <input id="progressBar" type="range" min="0" value="0" step="1" class="progress-range">
+                    </div>
+
+                    <div class="controls">
+                        <button id="prevBtn" class="ctrl">⏮</button>
+                        <button id="playBtn" class="ctrl play">▶</button>
+                        <button id="nextBtn" class="ctrl">⏭</button>
+                    </div>
+
+                    <div class="center-bottom-controls">
+                        <div class="vol-control">
+                            <span class="vol-icon">🔊</span>
+                            <input id="volumeControl" type="range" min="0" max="1" step="0.05" value="0.5">
+                        </div>
+                        <button id="loopBtn" class="btn btn-sm btn-ghost loop-sm">Loop: Off</button>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- Structured content sections (clean & professional) -->
+    <section class="container content-sections mt-5 mb-5">
+        <div class="row gx-5">
+            <div class="col-lg-8">
+                <!-- Features grid -->
+                <div class="card mb-4 p-4 panel features-grid animate-on-scroll" data-auto-stagger>
+                    <h2 class="mb-3">Key features</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="feature-card p-3">
+                                <h5>Focus Timer</h5>
+                                <p class="small text-muted">Predefined and custom timers with circular progress and auto-cycle between sessions.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card p-3">
+                                <h5>Music & Player</h5>
+                                <p class="small text-muted">Background tracks with prev/next, play/pause, seek and loop. Progress always starts at 0.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card p-3">
+                                <h5>Task list</h5>
+                                <p class="small text-muted">Quick add/edit/delete tasks; tasks saved locally in the browser.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card p-3">
+                                <h5>Session history</h5>
+                                <p class="small text-muted">History of completed sessions, export to CSV, clear history and view streaks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deep-dive cards -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card panel p-3 mb-4 animate-on-scroll" data-delay-ms="40">
+                            <h5>Why short sessions work</h5>
+                            <p class="small text-muted">Short bursts increase urgency and decrease the mental overhead of task-switching — you waste less energy deciding what to do next.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card panel p-3 mb-4 animate-on-scroll" data-delay-ms="80">
+                            <h5>Tips for using the app</h5>
+                            <ol class="small">
+                                <li>Plan 3 tasks before you start a session.</li>
+                                <li>Use the custom timer when a different length fits the task.</li>
+                                <li>Export history weekly to measure progress and adjust estimates.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full FAQ expanded -->
+                <div class="card mb-4 p-0 panel animate-on-scroll" id="faqBlock" data-delay-ms="120">
+                    <div class="p-4">
+                        <h4 class="mb-3">Frequently asked questions</h4>
+
+                        <div class="accordion" id="bigFaqAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqA1">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bigCollapseOne" aria-expanded="false" aria-controls="bigCollapseOne">
+                                        Is Pomodoro right for everyone?
+                                    </button>
+                                </h2>
+                                <div id="bigCollapseOne" class="accordion-collapse collapse" aria-labelledby="faqA1" data-bs-parent="#bigFaqAccordion">
+                                    <div class="accordion-body">
+                                        The Pomodoro Technique helps many people — especially those who struggle with procrastination or frequent distractions. It may be less ideal for tasks that require very long uninterrupted periods (e.g., certain deep research). In that case, increase each Pomodoro length (40–60 minutes) and keep longer breaks.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqA2">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bigCollapseTwo" aria-expanded="false" aria-controls="bigCollapseTwo">
+                                        How should I structure tasks and estimates?
+                                    </button>
+                                </h2>
+                                <div id="bigCollapseTwo" class="accordion-collapse collapse" aria-labelledby="faqA2" data-bs-parent="#bigFaqAccordion">
+                                    <div class="accordion-body">
+                                        Break tasks into small, deliverable pieces—each piece should ideally fit into 1–3 Pomodoros. Use your session history to see average time per task and refine your estimates. Keep task titles concise and measurable (e.g., "Draft 200 words of Conclusion").
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqA3">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bigCollapseThree" aria-expanded="false" aria-controls="bigCollapseThree">
+                                        Is my data stored on a server?
+                                    </button>
+                                </h2>
+                                <div id="bigCollapseThree" class="accordion-collapse collapse" aria-labelledby="faqA3" data-bs-parent="#bigFaqAccordion">
+                                    <div class="accordion-body">
+                                        No — tasks, settings and history stay in your browser's <strong>localStorage</strong>. Nothing is sent to a server unless you later add that feature.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqA4">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bigCollapseFour" aria-expanded="false" aria-controls="bigCollapseFour">
+                                        Can I use my own audio files?
+                                    </button>
+                                </h2>
+                                <div id="bigCollapseFour" class="accordion-collapse collapse" aria-labelledby="faqA4" data-bs-parent="#bigFaqAccordion">
+                                    <div class="accordion-body">
+                                        Yes — place audio in the <code>/wwwroot/music</code> folder and update the `playlist` list in `wwwroot/js/pomodoro.js`. The player supports seek, next/prev, loop and volume.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqA5">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bigCollapseFive" aria-expanded="false" aria-controls="bigCollapseFive">
+                                        How does export work?
+                                    </button>
+                                </h2>
+                                <div id="bigCollapseFive" class="accordion-collapse collapse" aria-labelledby="faqA5" data-bs-parent="#bigFaqAccordion">
+                                    <div class="accordion-body">
+                                        Export creates a CSV with date, time, session type and durations so you can analyze progress in Excel or Google Sheets.
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card panel mb-4 p-3 text-center animate-on-scroll" data-delay-ms="60">
+                    <h5>Available on</h5>
+                    <p class="small text-muted mb-2">Works on Windows, Mac, Linux, and mobile browsers</p>
+                    <div class="mb-2">
+                        <img src="/images/ico-windows.png" alt="Windows" style="height:28px; margin:0 6px;" onerror="this.style.display='none'" />
+                        <img src="/images/ico-mac.png" alt="Mac" style="height:28px; margin:0 6px;" onerror="this.style.display='none'" />
+                        <img src="/images/ico-android.png" alt="Android" style="height:28px; margin:0 6px;" onerror="this.style.display='none'" />
+                    </div>
+                    <a class="btn btn-primary btn-sm" href="#" onclick="alert('This is a demo app — no installer yet'); return false;">Get App</a>
+                </div>
+
+                <div class="card panel mb-4 p-3 animate-on-scroll" data-delay-ms="100">
+                    <h6>Why it works</h6>
+                    <p class="small text-muted">Short focused sessions reduce procrastination — use history to see real improvements.</p>
+                </div>
+
+                <div class="card panel p-3 animate-on-scroll" data-delay-ms="140">
+                    <h6>Contact / Feedback</h6>
+                    <p class="small text-muted">Send feedback to <a href="mailto:ianalmeida2005@gmail.com">ianalmeida2005@gmail.com</a> (demo only).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- History and Settings modals (unchanged structure) -->
+    <div id="historyModal" class="modal" tabindex="-1" style="display:none;">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Session History</h5>
+                    <div>
+                        <button id="exportHistory" class="btn btn-sm btn-outline-primary me-2">Export CSV</button>
+                        <button id="clearHistoryBtn" class="btn btn-sm btn-outline-danger me-2">Clear</button>
+                        <button id="closeHistory" class="btn btn-sm btn-ghost">Close</button>
+                    </div>
+                </div>
+
+                <div id="historySummary" class="mb-3">
+                    <div class="row">
+                        <div class="col-md-4"><strong>Today:</strong> <span id="summaryToday">0</span> sessions</div>
+                        <div class="col-md-4"><strong>Total:</strong> <span id="summaryTotal">0</span> sessions</div>
+                        <div class="col-md-4"><strong>Best streak:</strong> <span id="summaryStreak">0</span> days</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="historyTable" class="table table-sm table-striped">
+                        <thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Duration</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="historyEmpty" class="text-muted small mt-2" style="display:none;">No sessions yet — complete a Pomodoro to populate history.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal" tabindex="-1" style="display:none;">
+        <div class="modal-dialog">
+            <div class="modal-content p-3">
+                <h5>Settings</h5>
+
+                <div class="form-group mb-2">
+                    <label for="settingUsername">Display name (username)</label>
+                    <input id="settingUsername" class="form-control" type="text" placeholder="Your display name (shown in header)" />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label>Pomodoro (minutes)</label>
+                    <input id="settingWork" class="form-control" type="number" min="1" value="25" />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label>Short Break (minutes)</label>
+                    <input id="settingShort" class="form-control" type="number" min="1" value="5" />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label>Long Break (minutes)</label>
+                    <input id="settingLong" class="form-control" type="number" min="1" value="15" />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label>Theme</label>
+                    <select id="settingTheme" class="form-select">
+                        <option value="original">Original</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+
+                <div class="form-check mt-2">
+                    <input id="settingAutoStart" class="form-check-input" type="checkbox" checked />
+                    <label class="form-check-label">Auto-start next session</label>
+                </div>
+
+                <div class="mt-3 d-flex justify-content-end gap-2">
+                    <button id="saveSettings" class="btn btn-primary">Save</button>
+                    <button id="closeSettings" class="btn btn-outline-secondary">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioBell" src="/music/bell.mp3" preload="auto"></audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pomodoro.js"></script>
+    
+    
+
+</body>
+</html>
+

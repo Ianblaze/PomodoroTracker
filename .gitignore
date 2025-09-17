@@ -1,0 +1,27 @@
+﻿# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.pdb
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+
+# npm / node (if any)
+node_modules/
+
+# logs
+*.log
+
+# publish output
+wwwroot/
+
+# OS files
+Thumbs.db
+.DS_Store
